@@ -37,10 +37,13 @@ function extractJsonObject(raw: string): unknown {
   return JSON.parse(s);
 }
 
+import type { User } from "../../drizzle/schema";
+
 export async function generateKidsStory(
   prompt: string,
   ageGroup: string = "6-8",
-  length: string = "medium"
+  length: string = "medium",
+  user?: User | null
 ): Promise<{ title: string; content: string; moral: string }> {
   let ageGuidance = "";
   switch (ageGroup) {
@@ -91,18 +94,21 @@ Rules:
 
   let content: string | null | undefined;
 
-  if (ENV.openRouterApiKey) {
+  const apiKey = user?.openRouterApiKey || ENV.openRouterApiKey;
+  const model = user?.openRouterModel || ENV.openRouterStoryModel;
+
+  if (apiKey) {
     try {
       const response = await fetch(`${ENV.openRouterApiUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${ENV.openRouterApiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           "HTTP-Referer": "https://kathasagara.app",
           "X-Title": "Kathasagara Story Generator",
         },
         body: JSON.stringify({
-          model: ENV.openRouterStoryModel,
+          model: model,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
@@ -170,11 +176,12 @@ Rules:
 export async function generateKidsStorySimple(
   storyKind: string,
   ageGroup: string,
-  extraHint?: string
+  extraHint?: string,
+  user?: User | null
 ) {
   const prompt = buildUserPrompt(storyKind, extraHint);
   return {
-    ...(await generateKidsStory(prompt, ageGroup, "medium")),
+    ...(await generateKidsStory(prompt, ageGroup, "medium", user)),
     categoryLabel: labelForKind(String(storyKind)),
   };
 }

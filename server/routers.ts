@@ -131,10 +131,10 @@ export const appRouter = router({
            ageGroup: z.string(),
          })
        )
-       .mutation(async ({ input }) => {
+       .mutation(async ({ input, ctx }) => {
          // Generate kids-friendly story using generateKidsStory with built-in fallback
          const prompt = `Create a story about ${input.theme} featuring characters: ${input.characters.join(", ")} in a ${input.setting} setting.`;
-         const storyData = await generateKidsStory(prompt, input.ageGroup, "medium");
+         const storyData = await generateKidsStory(prompt, input.ageGroup, "medium", ctx.user);
 
          // Generate illustration for the story
          let illustrationUrl: string | undefined;
@@ -170,11 +170,12 @@ export const appRouter = router({
           extraHint: z.string().max(220).optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const story = await generateKidsStorySimple(
           input.storyKind,
           input.ageGroup,
-          input.extraHint
+          input.extraHint,
+          ctx.user
         );
         const toRead = [
           story.title,
@@ -298,7 +299,7 @@ export const appRouter = router({
   }),
 
   /**
-   * User profile management
+   * User profile and settings management
    */
   users: router({
     updateProfile: protectedProcedure
@@ -310,12 +311,36 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        const updatedUser = {
+          ...ctx.user,
+          name: input.name,
+          ageGroup: input.ageGroup,
+          readingInterests: input.readingInterests,
+        };
+        await upsertUser(updatedUser);
         return {
           success: true,
-          user: {
-            ...ctx.user,
-            name: input.name,
-          },
+          user: updatedUser,
+        };
+      }),
+
+    updateAiSettings: protectedProcedure
+      .input(
+        z.object({
+          openRouterApiKey: z.string().optional(),
+          openRouterModel: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const updatedUser = {
+          ...ctx.user,
+          openRouterApiKey: input.openRouterApiKey,
+          openRouterModel: input.openRouterModel,
+        };
+        await upsertUser(updatedUser);
+        return {
+          success: true,
+          user: updatedUser,
         };
       }),
   }),

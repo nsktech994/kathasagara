@@ -6,7 +6,7 @@ type HistoryRow = RouterOutputs["readingHistory"]["list"][number];
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import { LogOut, Heart, BookOpen, Clock, Edit2 } from "lucide-react";
+import { LogOut, Heart, BookOpen, Clock, Edit2, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { ReadingStats } from "@/components/ReadingStats";
 
@@ -61,6 +61,14 @@ export default function Profile() {
               >
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit Profile
+              </Button>
+              <Button
+                onClick={() => navigate("/settings")}
+                variant="outline"
+                className="font-playful rounded-full border-2"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                AI Settings
               </Button>
               <Button
                 onClick={handleLogout}

@@ -12,6 +12,7 @@ import StoryChat from "./pages/StoryChat";
 import ReadAlong from "./pages/ReadAlong";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
+import Settings from "./pages/Settings";
 import CategoryDetail from "./pages/CategoryDetail";
 
 function Router() {
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/story/:id/read-along" component={ReadAlong} />
       <Route path="/profile" component={Profile} />
       <Route path="/profile/edit" component={ProfileEdit} />
+      <Route path="/settings" component={Settings} />
       <Route path="/category/:name" component={CategoryDetail} />
       <Route path="/404" component={NotFound} />
       {/* Final fallback route */}
