@@ -1,5 +1,6 @@
 import { ENV } from "./env";
 import { STORY_KINDS } from "../../shared/storyKinds";
+import { invokeLLM } from "./llm";
 
 const MAX_NARRATION_CHARS = 8000;
 
@@ -41,10 +42,6 @@ export async function generateKidsStory(
   ageGroup: string = "6-8",
   length: string = "medium"
 ): Promise<{ title: string; content: string; moral: string }> {
-  if (!ENV.openRouterApiKey) {
-    throw new Error("OpenRouter API key is not configured (OPEN_ROUTER_API_KEY)");
-  }
-
   let ageGuidance = "";
   switch (ageGroup) {
     case "3-5":
@@ -92,39 +89,64 @@ Rules:
 
   const userPrompt = `Story request:\n${prompt}`;
 
-  const model = ENV.openRouterStoryModel;
+  let content: string | null | undefined;
 
-  const response = await fetch(`${ENV.openRouterApiUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${ENV.openRouterApiKey}`,
-      "HTTP-Referer": "https://kathasagara.app",
-      "X-Title": "Kathasagara Story Generator",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.85,
-      max_tokens: 2500,
-      response_format: { type: "json_object" },
-    }),
-  });
+  if (ENV.openRouterApiKey) {
+    try {
+      const response = await fetch(`${ENV.openRouterApiUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ENV.openRouterApiKey}`,
+          "HTTP-Referer": "https://kathasagara.app",
+          "X-Title": "Kathasagara Story Generator",
+        },
+        body: JSON.stringify({
+          model: ENV.openRouterStoryModel,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.85,
+          max_tokens: 2500,
+          response_format: { type: "json_object" },
+        }),
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
+      if (response.ok) {
+        const data = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string | null } }>;
+        };
+        content = data.choices?.[0]?.message?.content;
+      } else {
+        const errorText = await response.text();
+        console.warn(`OpenRouter API error: ${response.status} - ${errorText}`);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch from OpenRouter:", e);
+    }
   }
 
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string | null } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
+  // Fallback to built-in LLM if OpenRouter failed or wasn't configured
+  if (!content) {
+    try {
+      const response = await invokeLLM({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        responseFormat: { type: "json_object" },
+      });
+      const messageContent = response.choices[0]?.message.content;
+      content = typeof messageContent === "string" ? messageContent : null;
+    } catch (e) {
+      console.error("Built-in LLM fallback failed:", e);
+      throw new Error("Failed to generate story with both OpenRouter and built-in LLM.");
+    }
+  }
+
   if (typeof content !== "string" || !content.trim()) {
-    throw new Error("Empty response from OpenRouter");
+    throw new Error("Empty response from story generator");
   }
 
   const storyData = extractJsonObject(content) as {
