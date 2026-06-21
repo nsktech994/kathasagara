@@ -19,6 +19,8 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   ageGroup: varchar("ageGroup", { length: 20 }), // e.g., "4-6", "7-9", "10-12", "13+"
   readingInterests: json("readingInterests").$type<string[]>(), // Array of category interests
+  openRouterApiKey: text("openRouterApiKey"),
+  openRouterModel: varchar("openRouterModel", { length: 128 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

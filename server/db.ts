@@ -49,7 +49,14 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = [
+      "name",
+      "email",
+      "loginMethod",
+      "openRouterApiKey",
+      "openRouterModel",
+      "ageGroup",
+    ] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -61,6 +68,11 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     };
 
     textFields.forEach(assignNullable);
+
+    if (user.readingInterests !== undefined) {
+      values.readingInterests = user.readingInterests;
+      updateSet.readingInterests = user.readingInterests;
+    }
 
     if (user.lastSignedIn !== undefined) {
       values.lastSignedIn = user.lastSignedIn;

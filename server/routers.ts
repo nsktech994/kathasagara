@@ -131,42 +131,10 @@ export const appRouter = router({
            ageGroup: z.string(),
          })
        )
-       .mutation(async ({ input }) => {
-         // Generate kids-friendly story using OpenRouter API
-         let storyData;
-         try {
-           const prompt = `Create a story about ${input.theme} featuring characters: ${input.characters.join(", ")} in a ${input.setting} setting.`;
-           storyData = await generateKidsStory(prompt, input.ageGroup, "medium");
-         } catch (error) {
-           console.error("Failed to generate story with storyService:", error);
-           // Fallback to original method
-           const prompt = `Create a short, engaging story for children aged ${input.ageGroup}. 
-           Characters: ${input.characters.join(", ")}
-           Setting: ${input.setting}
-           Theme: ${input.theme}
-           
-           Make the story age-appropriate, fun, and with a positive message. Keep it between 300-500 words.`;
-
-           const response = await invokeLLM({
-             messages: [
-               {
-                 role: "system",
-                 content:
-                   "You are a creative storyteller for children. Create engaging, age-appropriate stories with positive messages.",
-               },
-               { role: "user", content: prompt },
-             ],
-           });
-
-           const messageContent = response.choices[0]?.message.content;
-           const storyContent = typeof messageContent === 'string' ? messageContent : "Unable to generate story";
-
-           storyData = {
-             title: `${input.theme} Story`,
-             content: storyContent,
-             moral: "Always be kind and brave."
-           };
-         }
+       .mutation(async ({ input, ctx }) => {
+         // Generate kids-friendly story using generateKidsStory with built-in fallback
+         const prompt = `Create a story about ${input.theme} featuring characters: ${input.characters.join(", ")} in a ${input.setting} setting.`;
+         const storyData = await generateKidsStory(prompt, input.ageGroup, "medium", ctx.user);
 
          // Generate illustration for the story
          let illustrationUrl: string | undefined;
@@ -202,11 +170,12 @@ export const appRouter = router({
           extraHint: z.string().max(220).optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const story = await generateKidsStorySimple(
           input.storyKind,
           input.ageGroup,
-          input.extraHint
+          input.extraHint,
+          ctx.user
         );
         const toRead = [
           story.title,
@@ -330,7 +299,7 @@ export const appRouter = router({
   }),
 
   /**
-   * User profile management
+   * User profile and settings management
    */
   users: router({
     updateProfile: protectedProcedure
@@ -342,12 +311,36 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
+        const updatedUser = {
+          ...ctx.user,
+          name: input.name,
+          ageGroup: input.ageGroup,
+          readingInterests: input.readingInterests,
+        };
+        await upsertUser(updatedUser);
         return {
           success: true,
-          user: {
-            ...ctx.user,
-            name: input.name,
-          },
+          user: updatedUser,
+        };
+      }),
+
+    updateAiSettings: protectedProcedure
+      .input(
+        z.object({
+          openRouterApiKey: z.string().optional(),
+          openRouterModel: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const updatedUser = {
+          ...ctx.user,
+          openRouterApiKey: input.openRouterApiKey,
+          openRouterModel: input.openRouterModel,
+        };
+        await upsertUser(updatedUser);
+        return {
+          success: true,
+          user: updatedUser,
         };
       }),
   }),
